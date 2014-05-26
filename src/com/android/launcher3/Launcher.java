@@ -50,9 +50,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.content.res.TypedArray;
 import android.database.ContentObserver;
-import android.database.DataSetObserver;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Point;
@@ -96,15 +94,9 @@ import android.view.accessibility.AccessibilityManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.view.inputmethod.InputMethodManager;
-
-import android.widget.AbsListView;
-import android.widget.AdapterView;
 import android.widget.Advanceable;
-import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
-import android.widget.GridView;
 import android.widget.ImageView;
-import android.widget.ListAdapter;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -123,7 +115,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -203,6 +194,11 @@ public class Launcher extends Activity
             "com.android.launcher.toolbar_search_icon";
     private static final String TOOLBAR_VOICE_SEARCH_ICON_METADATA_NAME =
             "com.android.launcher.toolbar_voice_search_icon";
+
+    private static final String WALLPAPER_PICKER_PACKAGE =
+            "com.android.wallpapercropper";
+    private static final String WALLPAPER_PICKER_ACTIVITY =
+            "com.android.wallpapercropper.WallpaperPickerActivity";
 
     public static final String SHOW_WEIGHT_WATCHER = "debug.show_mem";
     public static final boolean SHOW_WEIGHT_WATCHER_DEFAULT = false;
@@ -345,6 +341,9 @@ public class Launcher extends Activity
     private HideFromAccessibilityHelper mHideFromAccessibilityHelper
         = new HideFromAccessibilityHelper();
 
+    // Preferences
+    private boolean mHideIconLabels;
+
     private Runnable mBuildLayersRunnable = new Runnable() {
         public void run() {
             if (mWorkspace != null) {
@@ -394,6 +393,10 @@ public class Launcher extends Activity
 
         LauncherAppState.setApplicationContext(getApplicationContext());
         LauncherAppState app = LauncherAppState.getInstance();
+
+        mHideIconLabels = SettingsProvider.getBoolean(this,
+                SettingsProvider.SETTINGS_UI_HOMESCREEN_HIDE_ICON_LABELS,
+                R.bool.preferences_interface_homescreen_hide_icon_labels_default);
 
         // Determine the dynamic grid properties
         Point smallestSize = new Point();
@@ -1482,6 +1485,7 @@ public class Launcher extends Activity
     View createShortcut(int layoutResId, ViewGroup parent, ShortcutInfo info) {
         BubbleTextView favorite = (BubbleTextView) mInflater.inflate(layoutResId, parent, false);
         favorite.applyFromShortcutInfo(info, mIconCache);
+        favorite.setTextVisibility(!mHideIconLabels);
         favorite.setOnClickListener(this);
         if (info.itemType == LauncherSettings.Favorites.ITEM_TYPE_ALLAPPS && info.getIcon(mIconCache) == null) {
             // All apps icon
@@ -2301,6 +2305,9 @@ public class Launcher extends Activity
         // Create the view
         FolderIcon newFolder =
             FolderIcon.fromXml(R.layout.folder_icon, this, layout, folderInfo, mIconCache);
+        if (container == LauncherSettings.Favorites.CONTAINER_DESKTOP) {
+            newFolder.setTextVisible(!mHideIconLabels);
+        }
         mWorkspace.addInScreen(newFolder, container, screenId, cellX, cellY, 1, 1,
                 isWorkspaceLocked());
         // Force measure the new folder icon
@@ -2320,7 +2327,7 @@ public class Launcher extends Activity
     }
 
     protected ComponentName getWallpaperPickerComponent() {
-        return new ComponentName(getPackageName(), WallpaperPickerActivity.class.getName());
+        return new ComponentName(WALLPAPER_PICKER_PACKAGE, WALLPAPER_PICKER_ACTIVITY);
     }
 
     /**
@@ -4021,6 +4028,7 @@ public class Launcher extends Activity
                     FolderIcon newFolder = FolderIcon.fromXml(R.layout.folder_icon, this,
                             (ViewGroup) workspace.getChildAt(workspace.getCurrentPage()),
                             (FolderInfo) item, mIconCache);
+                    newFolder.setTextVisible(!mHideIconLabels);
                     workspace.addInScreenFromBind(newFolder, item.container, item.screenId, item.cellX,
                             item.cellY, 1, 1);
                     break;
