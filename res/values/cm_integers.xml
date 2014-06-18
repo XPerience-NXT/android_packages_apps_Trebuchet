@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2011 The Android Open Source Project
+<!--
+     Copyright (C) 2014 The CyanogenMod Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -13,9 +14,8 @@
      See the License for the specific language governing permissions and
      limitations under the License.
 -->
-
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_focused="true" android:drawable="@drawable/ic_iconpacks_pressed" />
-    <item android:state_pressed="true" android:drawable="@drawable/ic_iconpacks_pressed" />
-    <item android:drawable="@drawable/ic_iconpacks" />
-</selector>
+<resources>
+    <integer name="qsb_initial_alpha_state">55</integer>
+    <integer name="qsb_end_alpha_state">220</integer>
+    <integer name="qsb_buttons_end_colorfilter">120</integer>
+</resources>
