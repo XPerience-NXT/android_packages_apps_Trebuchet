@@ -17,13 +17,16 @@
         android:paddingBottom="@dimen/overview_panel_list_padding"
         android:paddingTop="@dimen/overview_panel_list_padding"
         android:textSize="20sp"
-        android:textColor="@color/listitem_text"/>
+        android:textColor="@color/listitem_text"
+        android:layout_alignParentLeft="true"
+        android:scrollHorizontally="true"
+        android:ellipsize="end"
+        android:maxLines="1"/>
 
     <TextView
         android:id="@+id/item_state"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentRight="true"
         android:drawablePadding="4dp"
         android:fontFamily="sans-serif-condensed"
         android:gravity="right"
@@ -31,6 +34,11 @@
         android:paddingTop="@dimen/overview_panel_list_padding"
         android:textSize="20sp"
         android:textAllCaps="true"
-        android:textColor="@color/listitem_text" />
+        android:textColor="@color/listitem_text"
+        android:layout_alignParentRight="true"
+        android:layout_toRightOf="@id/item_name"
+        android:scrollHorizontally="true"
+        android:ellipsize="end"
+        android:maxLines="1"/>
 
 </RelativeLayout>
