@@ -143,7 +143,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
 
     private boolean mCancelTap;
 
-    private int[] mPageScrolls;
+    protected int[] mPageScrolls;
 
     protected final static int TOUCH_STATE_REST = 0;
     protected final static int TOUCH_STATE_SCROLLING = 1;
@@ -1664,7 +1664,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
             }
 
             int baselineX = mPageScrolls[index] + scrollOffset + getViewportOffsetX();
-            return (int) (child.getX() - baselineX);
+            return (int) (child.getLeft() - baselineX);
         }
     }
 

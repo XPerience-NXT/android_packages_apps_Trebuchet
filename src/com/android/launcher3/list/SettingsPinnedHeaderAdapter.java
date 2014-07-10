@@ -71,7 +71,7 @@ public class SettingsPinnedHeaderAdapter extends PinnedHeaderListAdapter {
 
         if (title.equals(res
                 .getString(R.string.home_screen_search_text))) {
-            boolean current = mLauncher.shouldShowSearchBar();
+            boolean current = mLauncher.isSearchBarEnabled();
             String state = current ? res.getString(
                     R.string.setting_state_on) : res.getString(
                     R.string.setting_state_off);
@@ -203,12 +203,11 @@ public class SettingsPinnedHeaderAdapter extends PinnedHeaderListAdapter {
                 state = mLauncher.getResources().getString(R.string.grid_size_condensed);
                 break;
             case Custom:
-                state = mLauncher.getResources().getString(R.string.grid_size_custom);
                 int rows = SettingsProvider.getIntCustomDefault(mLauncher,
                         SettingsProvider.SETTINGS_UI_HOMESCREEN_ROWS, 0);
                 int columns = SettingsProvider.getIntCustomDefault(mLauncher,
                         SettingsProvider.SETTINGS_UI_HOMESCREEN_COLUMNS, 0);
-                state += "(" + rows + "x" + columns + ")";
+                state = rows + " " + "\u00d7" + " " + columns;
                 break;
         }
         ((TextView) v.findViewById(R.id.item_state)).setText(state);
@@ -244,7 +243,7 @@ public class SettingsPinnedHeaderAdapter extends PinnedHeaderListAdapter {
                         v,
                         SettingsProvider.SETTINGS_UI_HOMESCREEN_SEARCH,
                         R.bool.preferences_interface_homescreen_search_default);
-                mLauncher.updateDynamicGrid();
+                mLauncher.setUpdateDynamicGrid();
             } else if (value.equals(res
                     .getString(R.string.drawer_sorting_text))) {
                 onClickTransitionEffectButton();
@@ -262,7 +261,7 @@ public class SettingsPinnedHeaderAdapter extends PinnedHeaderListAdapter {
                         v,
                         SettingsProvider.SETTINGS_UI_GENERAL_ICONS_LARGE,
                         R.bool.preferences_interface_general_icons_large_default);
-                mLauncher.updateDynamicGrid();
+                mLauncher.setUpdateDynamicGrid();
             } else if (value.equals(res
                     .getString(R.string.icon_labels)) &&
                     ((Integer)v.getTag() == OverviewSettingsPanel.HOME_SETTINGS_POSITION)) {
@@ -270,7 +269,7 @@ public class SettingsPinnedHeaderAdapter extends PinnedHeaderListAdapter {
                         v,
                         SettingsProvider.SETTINGS_UI_HOMESCREEN_HIDE_ICON_LABELS,
                         R.bool.preferences_interface_homescreen_hide_icon_labels_default);
-                mLauncher.updateDynamicGrid();
+                mLauncher.setUpdateDynamicGrid();
             } else if (value.equals(res
                     .getString(R.string.icon_labels)) &&
                     ((Integer)v.getTag() == OverviewSettingsPanel.DRAWER_SETTINGS_POSITION)) {
@@ -278,21 +277,19 @@ public class SettingsPinnedHeaderAdapter extends PinnedHeaderListAdapter {
                         v,
                         SettingsProvider.SETTINGS_UI_DRAWER_HIDE_ICON_LABELS,
                         R.bool.preferences_interface_drawer_hide_icon_labels_default);
-                mLauncher.updateDynamicGrid();
+                mLauncher.setUpdateDynamicGrid();
             } else if (value.equals(res.getString(R.string.protected_app_settings))) {
                 Intent intent = new Intent();
                 intent.setClassName(OverviewSettingsPanel.ANDROID_SETTINGS,
                         OverviewSettingsPanel.ANDROID_PROTECTED_APPS);
                 mLauncher.startActivity(intent);
-            } else if (value.equals(res.getString(R.string.protected_app_settings))) {
-
             } else if (value.equals(res
                     .getString(R.string.scrolling_wallpaper))) {
                 onSettingsBooleanChanged(
                         v,
                         SettingsProvider.SETTINGS_UI_HOMESCREEN_SCROLLING_WALLPAPER_SCROLL,
                         R.bool.preferences_interface_homescreen_scrolling_wallpaper_scroll_default);
-                mLauncher.updateDynamicGrid();
+                mLauncher.setUpdateDynamicGrid();
             } else if (value.equals(res
                     .getString(R.string.search_screen_left_text)) &&
                     ((Integer)v.getTag() == OverviewSettingsPanel.HOME_SETTINGS_POSITION)) {
@@ -311,7 +308,9 @@ public class SettingsPinnedHeaderAdapter extends PinnedHeaderListAdapter {
                             v,
                             SettingsProvider.SETTINGS_UI_HOMESCREEN_SEARCH_SCREEN_LEFT,
                             R.bool.preferences_interface_homescreen_search_screen_left_default);
-                    mLauncher.updateDynamicGrid();
+                    mLauncher.restoreGelSetting();
+                    mLauncher.getWorkspace().updatePageScrollForCustomPage(!current);
+                    mLauncher.setUpdateDynamicGrid();
                 }
             } else if (value.equals(res
                     .getString(R.string.grid_size_text))) {

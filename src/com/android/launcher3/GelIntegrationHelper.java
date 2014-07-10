@@ -2,8 +2,11 @@ package com.android.launcher3;
 
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.SearchManager;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.service.gesture.EdgeGestureManager;
 import com.android.internal.util.gesture.EdgeGesturePosition;
 
@@ -15,13 +18,11 @@ import java.util.List;
  * in CyanogenMod.
  */
 public class GelIntegrationHelper {
-    // The Intent for the search activity (resolves to Google Now when installed)
-    public final static String INTENT_ACTION_ASSIST = "android.intent.action.ASSIST";
-
     private static final String GEL_ACTIVITY = "com.google.android.velvet.ui.VelvetActivity";
     private static final String GEL_PACKAGE_NAME = "com.google.android.googlequicksearchbox";
 
     private static final int EDGE_GESTURE_SERVICE_RIGHT_EDGE = 4;
+    private static final int EDGE_GESTURE_SERVICE_LEFT_EDGE = 1;
     private static final int EDGE_GESTURE_SERVICE_NO_EDGE = -1;
 
     private EdgeGestureManager.EdgeGestureActivationListener mEdgeGestureActivationListener = null;
@@ -42,7 +43,7 @@ public class GelIntegrationHelper {
      * 2. Starts the Google Now Activity with an exit_out_right transition animation so that
      *    the new Activity appears to slide in as another screen (similar to GEL).
      */
-    public void registerSwipeBackGestureListenerAndStartGel(final Activity launcherActivity) {
+    public void registerSwipeBackGestureListenerAndStartGel(final Activity launcherActivity, boolean isLayoutRtl) {
         EdgeGestureManager edgeGestureManager = EdgeGestureManager.getInstance();
         if(mEdgeGestureActivationListener == null) {
             mEdgeGestureActivationListener = new EdgeGestureManager.EdgeGestureActivationListener() {
@@ -74,13 +75,27 @@ public class GelIntegrationHelper {
             edgeGestureManager.setEdgeGestureActivationListener(mEdgeGestureActivationListener);
         }
         mEdgeGestureActivationListener.restoreListenerState();
+        int edge = isLayoutRtl ? EDGE_GESTURE_SERVICE_LEFT_EDGE : EDGE_GESTURE_SERVICE_RIGHT_EDGE;
         edgeGestureManager.updateEdgeGestureActivationListener(mEdgeGestureActivationListener,
-                                                               EDGE_GESTURE_SERVICE_RIGHT_EDGE);
+                                                               edge);
+        // Attempt to use Intent.ACTION_ASSIST, if supported
+        Intent intent = new Intent(Intent.ACTION_ASSIST);
+        if (!isIntentSupported(launcherActivity, intent)) {
+            // Start the Global Search Activity
+            final SearchManager searchManager =
+                    (SearchManager) launcherActivity.getSystemService(Context.SEARCH_SERVICE);
+            ComponentName globalSearchActivity = searchManager.getGlobalSearchActivity();
+            intent = new Intent();
+            intent.setComponent(globalSearchActivity);
+        }
 
-        // Start the Google Now Activity
-        Intent i = new Intent(INTENT_ACTION_ASSIST);
-        launcherActivity.startActivity(i);
+        launcherActivity.startActivity(intent);
         launcherActivity.overridePendingTransition(0, R.anim.exit_out_right);
+    }
+
+    private boolean isIntentSupported(Context context, Intent intent) {
+        PackageManager pm = context.getPackageManager();
+        return pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY) != null;
     }
 
     /**

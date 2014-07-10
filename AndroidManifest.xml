@@ -53,7 +53,6 @@
         android:protectionLevel="signature"
         />
 
-    <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <uses-permission android:name="android.permission.SET_WALLPAPER_HINTS" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -189,9 +188,6 @@
         <receiver android:name="com.android.launcher3.ThemeChangedReceiver" >
             <intent-filter>
                 <action android:name="org.cyanogenmod.intent.action.THEME_CHANGED"/>
-                <category android:name="org.cyanogenmod.intent.category.MODS_ICONS"/>
-                <category android:name="org.cyanogenmod.intent.category.MODS_OVERLAYS"/>
-                <category android:name="org.cyanogenmod.intent.category.MODS_FONTS"/>
             </intent-filter>
         </receiver>
 
