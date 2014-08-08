@@ -437,6 +437,8 @@ public class Workspace extends SmoothPagedView
         InstallShortcutReceiver.disableAndFlushInstallQueue(getContext());
         UninstallShortcutReceiver.disableAndFlushUninstallQueue(getContext());
 
+        removeExtraEmptyScreen(false, null);
+
         mDragSourceInternal = null;
         mLauncher.onInteractionEnd();
     }
@@ -1309,8 +1311,6 @@ public class Workspace extends SmoothPagedView
         int customPageIndex = getPageIndexForScreenId(CUSTOM_CONTENT_SCREEN_ID);
         if (hasCustomContent() && whichPage == customPageIndex && !mCustomContentShowing) {
             if(!isInOverviewMode()) {
-                mCustomContentShowing = true;
-                // Start Google Now and register the gesture to return to Trebuchet
                 mLauncher.onCustomContentLaunch();
             }
         }
@@ -1833,10 +1833,14 @@ public class Workspace extends SmoothPagedView
         int customPageIndex = getPageIndexForScreenId(CUSTOM_CONTENT_SCREEN_ID);
         // mCustomContentShowing can be lost if the Activity is recreated,
         // So make sure it is set to the right value.
+        boolean restoreCustomContentShowing = ((customPageIndex == getCurrentPage())
+                                                || (customPageIndex == getNextPage()))
+                                              && hasCustomContent();
         mCustomContentShowing = mCustomContentShowing
-                                || (customPageIndex == getCurrentPage()
-                                    && hasCustomContent());
-        if (mCustomContentShowing && mLauncher.isGelIntegrationEnabled()) {
+                                || restoreCustomContentShowing;
+        if (mCustomContentShowing
+            && (mLauncher.getCustomContentMode() == Launcher.CustomContentMode.GEL)
+            && !isInOverviewMode()) {
             moveToScreen((customPageIndex + 1), true);
         }
     }
@@ -2500,11 +2504,12 @@ public class Workspace extends SmoothPagedView
 
             float mOverviewPanelSlideScale = 1.0f;
 
-            if (overviewToWorkspace) {
+            if (overviewToWorkspace || stateIsNormal) {
+                ((SlidingUpPanelLayout) overviewPanel).collapsePane();
                 overviewPanel.setScaleY(1.0f);
-                mOverviewPanelSlideScale = 2.5f;
-            } else if (workspaceToOverview) {
-                overviewPanel.setScaleY(2.5f);
+                mOverviewPanelSlideScale = 3.0f;
+            } else if (workspaceToOverview || stateIsOverview) {
+                overviewPanel.setScaleY(3.0f);
                 mOverviewPanelSlideScale = 1.0f;
             }
 
@@ -2515,7 +2520,7 @@ public class Workspace extends SmoothPagedView
             overviewPanelScale.setListener(new AnimatorListener() {
                 @Override
                 public void onAnimationStart(Animator animation) {
-                    if (workspaceToOverview) {
+                    if (workspaceToOverview || stateIsOverview) {
                         overviewPanel.setAlpha(finalOverviewPanelAlpha);
                         AlphaUpdateListener.updateVisibility(overviewPanel);
                     }
@@ -2523,7 +2528,7 @@ public class Workspace extends SmoothPagedView
 
                 @Override
                 public void onAnimationEnd(Animator animation) {
-                    if (overviewToWorkspace) {
+                    if (overviewToWorkspace || stateIsNormal) {
                         overviewPanel.setAlpha(finalOverviewPanelAlpha);
                         AlphaUpdateListener.updateVisibility(overviewPanel);
                     }
@@ -4930,7 +4935,7 @@ public class Workspace extends SmoothPagedView
         int idx = getPageIndexForScreenId(mDefaultScreenId);
         int ccIndex = getPageIndexForScreenId(CUSTOM_CONTENT_SCREEN_ID);
         if(hasCustomContent() && (idx == ccIndex || idx == -1)
-           && mLauncher.isGelIntegrationEnabled()) {
+           && !isInOverviewMode()) {
             idx = 1;
         }
         moveToScreen(idx, animate);
