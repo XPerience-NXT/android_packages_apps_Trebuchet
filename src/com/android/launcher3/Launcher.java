@@ -66,6 +66,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.StrictMode;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.speech.RecognizerIntent;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
@@ -403,6 +404,12 @@ public class Launcher extends Activity
         }
     }
 
+    public static float sAnimatorDurationScale = 1f;
+
+    public static boolean isAnimatorScaleSafe() {
+        return sAnimatorDurationScale >= 1f;
+    }
+
     private CustomContentMode mCustomContentMode = CustomContentMode.CUSTOM_HOME;
 
     // Preferences
@@ -456,6 +463,38 @@ public class Launcher extends Activity
             updateDynamicGrid();
         }
     };
+
+    private class AnimatorScaleObserver extends ContentObserver {
+
+        /**
+         * Creates a content observer.
+         *
+         * @param handler The handler to run {@link #onChange} on, or null if none.
+         */
+        public AnimatorScaleObserver(Handler handler) {
+            super(handler);
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            onChange(selfChange, null);
+        }
+
+        @Override
+        public void onChange(boolean selfChange, Uri uri) {
+            try {
+                Float curAnimationDurationScale = Settings.Global.getFloat(getContentResolver(),
+                        Settings.Global.ANIMATOR_DURATION_SCALE);
+                if (curAnimationDurationScale != sAnimatorDurationScale) {
+                    // the Animator Duration scale has changed, restart the Launcher to respect
+                    // these changes
+                    android.os.Process.killProcess(android.os.Process.myPid());
+                }
+            } catch (Settings.SettingNotFoundException e) {
+                sAnimatorDurationScale = 1f;
+            }
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -564,6 +603,16 @@ public class Launcher extends Activity
                 "cyanogenmod.intent.action.PROTECTED_COMPONENT_UPDATE");
         registerReceiver(protectedAppsChangedReceiver, protectedAppsFilter,
                 "cyanogenmod.permission.PROTECTED_APP", null);
+
+        try {
+            sAnimatorDurationScale = Settings.Global.getFloat(getContentResolver(),
+                    Settings.Global.ANIMATOR_DURATION_SCALE);
+        } catch (Settings.SettingNotFoundException e) {
+            sAnimatorDurationScale = 1f;
+        }
+
+        AnimatorScaleObserver obs = new AnimatorScaleObserver(new Handler());
+        getContentResolver().registerContentObserver(Settings.Global.CONTENT_URI, true, obs);
     }
 
     public void restoreCustomContentMode() {
@@ -573,7 +622,7 @@ public class Launcher extends Activity
                 CustomContentMode.DISABLED.getValue()));
     }
 
-    void initializeDynamicGrid() {
+    private void initializeDynamicGrid() {
         LauncherAppState.setApplicationContext(getApplicationContext());
         LauncherAppState app = LauncherAppState.getInstance();
 
@@ -1108,10 +1157,6 @@ public class Launcher extends Activity
 
         updateGridIfNeeded();
 
-        if(isCustomContentModeGel() && isGelIntegrationSupported()) {
-            GelIntegrationHelper.getInstance().handleGelResume();
-        }
-
         // Restore the previous launcher state
         if (mOnResumeState == State.WORKSPACE) {
             showWorkspace(false);
@@ -1405,7 +1450,7 @@ public class Launcher extends Activity
         anim.addListener(mAnimatorListener);
     }
 
-    public void onClickTransitionEffectOverflowMenuButton(View v) {
+    public void onClickTransitionEffectOverflowMenuButton(View v, final boolean drawer) {
         final PopupMenu popupMenu = new PopupMenu(this, v);
 
         final Menu menu = popupMenu.getMenu();
@@ -1413,22 +1458,22 @@ public class Launcher extends Activity
         MenuItem pageOutlines = menu.findItem(R.id.scrolling_page_outlines);
         MenuItem fadeAdjacent = menu.findItem(R.id.scrolling_fade_adjacent);
 
-        pageOutlines.setVisible(!isAllAppsVisible());
+        pageOutlines.setVisible(!drawer);
         pageOutlines.setChecked(SettingsProvider.getBoolean(this,
                 SettingsProvider.SETTINGS_UI_HOMESCREEN_SCROLLING_PAGE_OUTLINES,
                 R.bool.preferences_interface_homescreen_scrolling_page_outlines_default
         ));
 
         fadeAdjacent.setChecked(SettingsProvider.getBoolean(this,
-                !isAllAppsVisible() ?
+                !drawer ?
                         SettingsProvider.SETTINGS_UI_HOMESCREEN_SCROLLING_FADE_ADJACENT :
                         SettingsProvider.SETTINGS_UI_DRAWER_SCROLLING_FADE_ADJACENT,
-                !isAllAppsVisible() ?
+                !drawer ?
                         R.bool.preferences_interface_homescreen_scrolling_fade_adjacent_default :
                         R.bool.preferences_interface_drawer_scrolling_fade_adjacent_default
         ));
 
-        final PagedView pagedView = !isAllAppsVisible() ? mWorkspace : mAppsCustomizeContent;
+        final PagedView pagedView = !drawer ? mWorkspace : mAppsCustomizeContent;
 
         popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             @Override
@@ -1441,7 +1486,7 @@ public class Launcher extends Activity
                         break;
                     case R.id.scrolling_fade_adjacent:
                         SettingsProvider.get(Launcher.this).edit()
-                                .putBoolean(!isAllAppsVisible() ?
+                                .putBoolean(!drawer ?
                                         SettingsProvider.SETTINGS_UI_HOMESCREEN_SCROLLING_FADE_ADJACENT :
                                         SettingsProvider.SETTINGS_UI_DRAWER_SCROLLING_FADE_ADJACENT, !item.isChecked()).commit();
                         pagedView.setFadeInAdjacentScreens(!item.isChecked());
@@ -2709,6 +2754,8 @@ public class Launcher extends Activity
                 if (mAppsCustomizeContent.getContentType() ==
                         AppsCustomizePagedView.ContentType.Applications) {
                     showWorkspace(true);
+                    // Background was set to gradient in onPause(), restore to black if in all apps.
+                    setWorkspaceBackground(mState == State.WORKSPACE);
                 } else {
                     showOverviewMode(true);
                 }
@@ -3427,9 +3474,6 @@ public class Launcher extends Activity
 
         setPivotsForZoom(toView, scale);
 
-        // Shrink workspaces away if going to AppsCustomize from workspace
-        Animator workspaceAnim =
-                mWorkspace.getChangeStateAnimation(Workspace.State.SMALL, animated);
         if (!LauncherAppState.isDisableAllApps()
                 || contentType == AppsCustomizePagedView.ContentType.Widgets) {
             // Set the content type for the all apps/widgets space
@@ -3491,14 +3535,18 @@ public class Launcher extends Activity
                 }
             });
 
+            dispatchOnLauncherTransitionPrepare(fromView, animated, false);
+            dispatchOnLauncherTransitionPrepare(toView, animated, false);
+
+            // Shrink workspaces away if going to AppsCustomize from workspace
+            Animator workspaceAnim =
+                    mWorkspace.getChangeStateAnimation(Workspace.State.SMALL, animated);
+
             if (workspaceAnim != null) {
                 mStateAnimation.play(workspaceAnim);
             }
 
             boolean delayAnim = false;
-
-            dispatchOnLauncherTransitionPrepare(fromView, animated, false);
-            dispatchOnLauncherTransitionPrepare(toView, animated, false);
 
             // If any of the objects being animated haven't been measured/laid out
             // yet, delay the animation until we get a layout pass
@@ -3720,6 +3768,7 @@ public class Launcher extends Activity
         if (resetPageToZero) {
             mAppsCustomizeLayout.reset();
         }
+        mAppsCustomizeContent.sortApps();
         showAppsCustomizeHelper(animated, false, contentType);
         mAppsCustomizeLayout.requestFocus();
 
@@ -4979,6 +5028,10 @@ public class Launcher extends Activity
     }
 
     public void updateDynamicGrid() {
+        updateDynamicGrid(mWorkspace.getRestorePage());
+    }
+
+    public void updateDynamicGrid(int page) {
         mSearchDropTargetBar.setupQSB(Launcher.this);
 
         initializeDynamicGrid();
@@ -4986,7 +5039,7 @@ public class Launcher extends Activity
         mGrid.layout(Launcher.this);
 
         // Synchronized reload
-        mModel.startLoader(true, mWorkspace.getCurrentPage());
+        mModel.startLoader(true, page);
         mWorkspace.updateCustomContentVisibility();
 
     }
@@ -4997,7 +5050,7 @@ public class Launcher extends Activity
 
     public boolean updateGridIfNeeded() {
         if (mDynamicGridUpdateRequired) {
-            updateDynamicGrid();
+            updateDynamicGrid(mWorkspace.getCurrentPage());
             mDynamicGridUpdateRequired = false;
             return true;
         }

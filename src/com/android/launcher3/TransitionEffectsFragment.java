@@ -2,28 +2,22 @@ package com.android.launcher3;
 
 import android.animation.Animator;
 import android.animation.ObjectAnimator;
-import android.animation.ValueAnimator;
 import android.app.Fragment;
 import android.content.Context;
-import android.content.Intent;
-import android.content.res.Resources;
 import android.content.res.TypedArray;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import com.android.launcher3.settings.SettingsProvider;
 
@@ -34,13 +28,12 @@ public class TransitionEffectsFragment extends Fragment {
     ImageView mTransitionIcon;
     ListView mListView;
     View mCurrentSelection;
-    ScrollView mScrollView;
 
     String[] mTransitionStates;
     TypedArray mTransitionDrawables;
     String mCurrentState;
     int mCurrentPosition;
-    boolean mPageOrDrawer;
+    boolean mIsDrawer;
     String mSettingsProviderValue;
     int mPreferenceValue;
 
@@ -76,18 +69,24 @@ public class TransitionEffectsFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.settings_transitions_screen, container, false);
+        mListView = (ListView) v.findViewById(R.id.settings_transitions_list);
 
-        mPageOrDrawer = getArguments().getBoolean(PAGE_OR_DRAWER_SCROLL_SELECT);
+        final Launcher launcher = (Launcher) getActivity();
+        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams)
+                mListView.getLayoutParams();
+        lp.bottomMargin = ((FrameLayout.LayoutParams) launcher.getOverviewPanel()
+                .findViewById(R.id.settings_container).getLayoutParams()).bottomMargin;
+        mListView.setLayoutParams(lp);
 
-        mSettingsProviderValue = mPageOrDrawer ?
+        mIsDrawer = getArguments().getBoolean(PAGE_OR_DRAWER_SCROLL_SELECT);
+
+        mSettingsProviderValue = mIsDrawer ?
                 SettingsProvider.SETTINGS_UI_DRAWER_SCROLLING_TRANSITION_EFFECT
                 : SettingsProvider.SETTINGS_UI_HOMESCREEN_SCROLLING_TRANSITION_EFFECT;
-        mPreferenceValue = mPageOrDrawer ? R.string.preferences_interface_drawer_scrolling_transition_effect
+        mPreferenceValue = mIsDrawer ? R.string.preferences_interface_drawer_scrolling_transition_effect
                 : R.string.preferences_interface_homescreen_scrolling_transition_effect;
 
         mTransitionIcon = (ImageView) v.findViewById(R.id.settings_transition_image);
-        mListView = (ListView) v.findViewById(R.id.settings_transitions_list);
-        mScrollView = (ScrollView) v.findViewById(R.id.scroll_view);
         TextView title = (TextView) v.findViewById(R.id.transition_effect_title);
         title.setText(getResources().getString(R.string.scroll_effect_text));
         LinearLayout titleLayout = (LinearLayout) v.findViewById(R.id.transition_title);
@@ -95,6 +94,13 @@ public class TransitionEffectsFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 setEffect();
+            }
+        });
+        View options = v.findViewById(R.id.transition_options_menu);
+        options.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                launcher.onClickTransitionEffectOverflowMenuButton(view, mIsDrawer);
             }
         });
 
@@ -118,7 +124,7 @@ public class TransitionEffectsFragment extends Fragment {
     }
 
     public void setEffect() {
-        ((Launcher) getActivity()).setTransitionEffect(mPageOrDrawer, mCurrentState);
+        ((Launcher) getActivity()).setTransitionEffect(mIsDrawer, mCurrentState);
     }
 
     private int mapEffectToPosition(String effect) {
